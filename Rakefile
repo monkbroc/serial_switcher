@@ -1,3 +1,5 @@
+require 'mkmf'
+
 TARGET="serial_switcher"
 TARGETS = [
   {os: 'windows', arch: '386'},
@@ -9,7 +11,7 @@ TARGETS = [
 ]
 
 desc "build particle-cli-ng"
-task :build do
+task :build => :check_dependencies do
   puts "Building..."
   FileUtils.mkdir_p 'dist'
   TARGETS.each do |target|
@@ -21,9 +23,10 @@ end
 def build(target)
   path = "./dist/#{target[:os]}/#{target[:arch]}/#{TARGET}"
   path += ".exe" if target[:os] === 'windows'
-  # ldflags = "-X=main.Version=#{VERSION} -X=main.Channel=#{CHANNEL}"
   args = ["-o", "#{path}"]
-  # args += ["-ldflags", "\"#{ldflags}\""]
+  # ldflags = "-X=main.Version=#{VERSION} -X=main.Channel=#{CHANNEL}"
+  ldflags = "-s -w"
+  args += ["-ldflags", "\"#{ldflags}\""]
   # unless target[:os] === 'windows'
   #   args += ["-a", "-tags", "netgo"]
   # end
@@ -32,6 +35,15 @@ def build(target)
   vars << "GOARM=#{target[:goarm]}" if target[:goarm]
   ok = system("#{vars.join(' ')} go build #{args.join(' ')}")
   exit 1 unless ok
+
+  ok = system("upx --brute #{path}")
+  exit 1 unless ok
+end
+
+task :check_dependencies do
+  unless find_executable 'upx'
+    fail "upx (Ultimate Packer for eXecutables) not found"
+  end
 end
 
 task :default => :build
